@@ -29,6 +29,8 @@ private:
     int getGhostRow() const;
     void updateScore(int linesClear);
     void moveDown();
+    void lockToGrid();
+    void finishDrop();
 
     void moveLeft();
     void moveRight();
