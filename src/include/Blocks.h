@@ -7,6 +7,7 @@
 enum class BlockType { I, O, T, S, Z, J, L };
 
 using Shape = std::array<std::array<uint8_t, 4>, 4>;
+constexpr int kRotationStates = 4;
 
 class Blocks {
 public:
