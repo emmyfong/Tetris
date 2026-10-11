@@ -1,6 +1,7 @@
-#include <iostream>
+#include "Game.h"
 
 int main() {
-    std::cout << "Tetris engine skeleton\n";
+    Game game;
+    game.run();
     return 0;
 }
