@@ -15,3 +15,10 @@ add_executable(tetris
 )
 
 target_include_directories(tetris PRIVATE src/include)
+
+find_package(glfw3 REQUIRED)
+find_package(Vulkan REQUIRED)
+find_package(vk-bootstrap REQUIRED)
+
+add_executable(window_test src/experiments/window_test.cpp)
+target_link_libraries(window_test PRIVATE glfw Vulkan::Vulkan vk-bootstrap::vk-bootstrap)
