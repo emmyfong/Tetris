@@ -23,12 +23,12 @@ public:
     const std::optional<Block>& getHoldBlock() const;
     int getScore() const;
     bool isGameOver() const;
+    int getGhostRow() const;
 
 private:
     Block getRandomBlock();
     void spawnBlock();
     bool checkCollision(int rowOffset = 0) const;
-    int getGhostRow() const;
     void updateScore(int linesClear);
     void moveDown();
     void lockToGrid();

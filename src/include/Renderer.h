@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
 #include <VkBootstrap.h>
@@ -25,8 +26,18 @@ private:
         float color[3];
     };
 
+    struct TextVertex {
+        float pos[2];
+        float uv[2];
+    };
+
     std::vector<Vertex> buildVertices(const Engine& engine) const;
+    std::vector<TextVertex> buildTextVertices(const Engine& engine) const;
+    void addText(std::vector<TextVertex>& verts, const std::string& text, float x, float y, float pixelScale) const;
+
     uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const;
+    VkCommandBuffer beginSingleTimeCommands() const;
+    void endSingleTimeCommands(VkCommandBuffer commandBuffer) const;
 
     vkb::Instance instance;
     VkSurfaceKHR surface;
@@ -51,4 +62,23 @@ private:
     VkBuffer vertexBuffer;
     VkDeviceMemory vertexBufferMemory;
     void* mappedVertexData;
+
+    // --- text rendering ---
+    VkImage fontAtlasImage;
+    VkDeviceMemory fontAtlasImageMemory;
+    VkImageView fontAtlasImageView;
+    VkSampler fontAtlasSampler;
+    int fontAtlasWidth;
+    int fontAtlasHeight;
+
+    VkDescriptorSetLayout textDescriptorSetLayout;
+    VkDescriptorPool textDescriptorPool;
+    VkDescriptorSet textDescriptorSet;
+
+    VkPipelineLayout textPipelineLayout;
+    VkPipeline textPipeline;
+
+    VkBuffer textVertexBuffer;
+    VkDeviceMemory textVertexBufferMemory;
+    void* mappedTextVertexData;
 };

@@ -26,6 +26,8 @@ target_link_libraries(tetris PRIVATE glfw Vulkan::Vulkan vk-bootstrap::vk-bootst
 set(SHADER_SOURCES
     ${CMAKE_SOURCE_DIR}/shaders/tetris.vert
     ${CMAKE_SOURCE_DIR}/shaders/tetris.frag
+    ${CMAKE_SOURCE_DIR}/shaders/text.vert
+    ${CMAKE_SOURCE_DIR}/shaders/text.frag
 )
 
 foreach(SHADER ${SHADER_SOURCES})

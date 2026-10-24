@@ -836,13 +836,15 @@ std::vector<Renderer::Vertex> Renderer::buildVertices(const Engine& engine) cons
     const float gg = 180.0f / 255.0f;
     const float gb = 180.0f / 255.0f;
 
-    // Draws a thin rectangular outline (4 edges) - used for both the board's
-    // grid lines and UI panel box borders.
-    auto addBorderBox = [&](float x0, float y0, float x1, float y1) {
-        addQuad(x0, y0, x1, y0 + lineHalfThickness * 2.0f, gr, gg, gb);              // top
-        addQuad(x0, y1 - lineHalfThickness * 2.0f, x1, y1, gr, gg, gb);              // bottom
-        addQuad(x0, y0, x0 + lineHalfThickness * 2.0f, y1, gr, gg, gb);              // left
-        addQuad(x1 - lineHalfThickness * 2.0f, y0, x1, y1, gr, gg, gb);              // right
+    // Draws a thin rectangular outline (4 edges) in color (r,g,b) - used for
+    // the board's grid lines, UI panel box borders (always gray, gr/gg/gb),
+    // the preview-piece grid lines (gray), and the ghost piece outline
+    // (the falling piece's own color).
+    auto addBorderBox = [&](float x0, float y0, float x1, float y1, float r, float g, float b) {
+        addQuad(x0, y0, x1, y0 + lineHalfThickness * 2.0f, r, g, b);              // top
+        addQuad(x0, y1 - lineHalfThickness * 2.0f, x1, y1, r, g, b);              // bottom
+        addQuad(x0, y0, x0 + lineHalfThickness * 2.0f, y1, r, g, b);              // left
+        addQuad(x1 - lineHalfThickness * 2.0f, y0, x1, y1, r, g, b);              // right
     };
 
     // Draws `block`'s current shape centered inside box [x0,y0]-[x1,y1],
@@ -875,7 +877,7 @@ std::vector<Renderer::Vertex> Renderer::buildVertices(const Engine& engine) cons
                     float cellX0 = startX + (j - minCol) * cellWidth;
                     float cellY0 = startY + (i - minRow) * cellHeight;
                     addQuad(cellX0, cellY0, cellX0 + cellWidth, cellY0 + cellHeight, pr, pg, pb);
-                    addBorderBox(cellX0, cellY0, cellX0 + cellWidth, cellY0 + cellHeight);
+                    addBorderBox(cellX0, cellY0, cellX0 + cellWidth, cellY0 + cellHeight, gr, gg, gb);
                 }
             }
         }
@@ -895,6 +897,10 @@ std::vector<Renderer::Vertex> Renderer::buildVertices(const Engine& engine) cons
     const Block& activeBlock = engine.getCurrentBlock();
     const Shape& shape = activeBlock.getCurrentShape();
     Settings::RGB activeColor = Settings::getColorRGB(Blocks::getColor(activeBlock.type));
+    float activeR = activeColor.r / 255.0f;
+    float activeG = activeColor.g / 255.0f;
+    float activeB = activeColor.b / 255.0f;
+
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 4; ++j) {
             if (shape[i][j] != 0) {
@@ -902,6 +908,23 @@ std::vector<Renderer::Vertex> Renderer::buildVertices(const Engine& engine) cons
                 int globalCol = activeBlock.col + j;
                 if (grid.isInBounds(globalRow, globalCol)) {
                     addCell(globalRow, globalCol, activeColor);
+                }
+            }
+        }
+    }
+
+    // Ghost piece: outline only (no fill, since the pipeline has no alpha
+    // blending set up) at the row the piece would land on hard drop.
+    int ghostRow = engine.getGhostRow();
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            if (shape[i][j] != 0) {
+                int globalRow = ghostRow + i;
+                int globalCol = activeBlock.col + j;
+                if (grid.isInBounds(globalRow, globalCol)) {
+                    float x0 = -1.0f + globalCol * cellWidth;
+                    float y0 = -1.0f + globalRow * cellHeight;
+                    addBorderBox(x0, y0, x0 + cellWidth, y0 + cellHeight, activeR, activeG, activeB);
                 }
             }
         }
@@ -923,14 +946,14 @@ std::vector<Renderer::Vertex> Renderer::buildVertices(const Engine& engine) cons
     const float panelX1 = 1.0f - 0.05f;
 
     // Score box
-    addBorderBox(panelX0, -0.85f, panelX1, -0.55f);
+    addBorderBox(panelX0, -0.85f, panelX1, -0.55f, gr, gg, gb);
 
     // Next-piece box
-    addBorderBox(panelX0, -0.40f, panelX1, -0.05f);
+    addBorderBox(panelX0, -0.40f, panelX1, -0.05f, gr, gg, gb);
     addPiecePreview(engine.getNextBlock(), panelX0, -0.40f, panelX1, -0.05f);
 
     // Hold-piece box
-    addBorderBox(panelX0, 0.15f, panelX1, 0.50f);
+    addBorderBox(panelX0, 0.15f, panelX1, 0.50f, gr, gg, gb);
     const std::optional<Block>& holdBlock = engine.getHoldBlock();
     if (holdBlock.has_value()) {
         addPiecePreview(*holdBlock, panelX0, 0.15f, panelX1, 0.50f);
