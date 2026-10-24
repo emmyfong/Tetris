@@ -19,6 +19,8 @@ public:
 
     const Grid& getGrid() const;
     const Block& getCurrentBlock() const;
+    const Block& getNextBlock() const;
+    const std::optional<Block>& getHoldBlock() const;
     int getScore() const;
     bool isGameOver() const;
 

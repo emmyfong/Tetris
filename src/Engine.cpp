@@ -201,5 +201,7 @@ void Engine::tick() {
 
 const Grid& Engine::getGrid() const { return grid; }
 const Block& Engine::getCurrentBlock() const { return currentBlock; }
+const Block& Engine::getNextBlock() const { return nextBlock; }
+const std::optional<Block>& Engine::getHoldBlock() const { return holdBlock; }
 int Engine::getScore() const { return score; }
 bool Engine::isGameOver() const { return gameOver; }
