@@ -3,6 +3,7 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
@@ -40,10 +41,12 @@ VkShaderModule createShaderModule(VkDevice device, const std::vector<char>& code
     return shaderModule;
 }
 
-// Worst case
+// Worst case: every board cell filled plus the falling piece, plus grid
+// line quads, plus a generous allowance for UI panel elements (borders +
+// piece previews), 6 vertices per quad (2 triangles).
 constexpr size_t kMaxVertices =
     (Settings::kBoardWidth * Settings::kBoardHeight + 16 +
-     (Settings::kBoardWidth + 1) + (Settings::kBoardHeight + 1)) * 6;
+     (Settings::kBoardWidth + 1) + (Settings::kBoardHeight + 1) + 200) * 6;
 
 } // namespace
 
@@ -386,6 +389,51 @@ std::vector<Renderer::Vertex> Renderer::buildVertices(const Engine& engine) cons
         addQuad(x0, y0, x1, y1, rgb.r / 255.0f, rgb.g / 255.0f, rgb.b / 255.0f);
     };
 
+    const float lineHalfThickness = 0.004f;
+    const float gr = 180.0f / 255.0f;
+    const float gg = 180.0f / 255.0f;
+    const float gb = 180.0f / 255.0f;
+
+    // Draws a thin rectangular outline (4 edges) - used for both the board's
+    // grid lines and UI panel box borders.
+    auto addBorderBox = [&](float x0, float y0, float x1, float y1) {
+        addQuad(x0, y0, x1, y0 + lineHalfThickness * 2.0f, gr, gg, gb);              // top
+        addQuad(x0, y1 - lineHalfThickness * 2.0f, x1, y1, gr, gg, gb);              // bottom
+        addQuad(x0, y0, x0 + lineHalfThickness * 2.0f, y1, gr, gg, gb);              // left
+        addQuad(x1 - lineHalfThickness * 2.0f, y0, x1, y1, gr, gg, gb);              // right
+    };
+
+    // Draws `block`'s current shape centered and scaled to fit inside the
+    // box [x0,y0]-[x1,y1] - used for the next-piece and hold-piece previews.
+    auto addPiecePreview = [&](const Block& block, float x0, float y0, float x1, float y1) {
+        auto [minRow, maxRow, minCol, maxCol] = block.getShapeBounds();
+        int pieceWidthCells = maxCol - minCol + 1;
+        int pieceHeightCells = maxRow - minRow + 1;
+
+        float boxWidth = x1 - x0;
+        float boxHeight = y1 - y0;
+        float previewCellSize = 0.8f * std::min(boxWidth / pieceWidthCells, boxHeight / pieceHeightCells);
+
+        float startX = x0 + (boxWidth - pieceWidthCells * previewCellSize) / 2.0f;
+        float startY = y0 + (boxHeight - pieceHeightCells * previewCellSize) / 2.0f;
+
+        const Shape& previewShape = block.getCurrentShape();
+        Settings::RGB previewColor = Settings::getColorRGB(Blocks::getColor(block.type));
+        float pr = previewColor.r / 255.0f;
+        float pg = previewColor.g / 255.0f;
+        float pb = previewColor.b / 255.0f;
+
+        for (int i = minRow; i <= maxRow; ++i) {
+            for (int j = minCol; j <= maxCol; ++j) {
+                if (previewShape[i][j] != 0) {
+                    float cellX0 = startX + (j - minCol) * previewCellSize;
+                    float cellY0 = startY + (i - minRow) * previewCellSize;
+                    addQuad(cellX0, cellY0, cellX0 + previewCellSize, cellY0 + previewCellSize, pr, pg, pb);
+                }
+            }
+        }
+    };
+
     const Grid& grid = engine.getGrid();
     for (int row = 0; row < Settings::kBoardHeight; ++row) {
         for (int col = 0; col < Settings::kBoardWidth; ++col) {
@@ -412,12 +460,7 @@ std::vector<Renderer::Vertex> Renderer::buildVertices(const Engine& engine) cons
         }
     }
 
-    // Grid outline
-    const float lineHalfThickness = 0.004f;
-    const float gr = 180.0f / 255.0f;
-    const float gg = 180.0f / 255.0f;
-    const float gb = 180.0f / 255.0f;
-
+    // Board grid outline (internal lines, not just the outer border)
     for (int col = 0; col <= Settings::kBoardWidth; ++col) {
         float x = -1.0f + col * cellWidth;
         addQuad(x - lineHalfThickness, -1.0f, x + lineHalfThickness, 1.0f, gr, gg, gb);
@@ -425,6 +468,17 @@ std::vector<Renderer::Vertex> Renderer::buildVertices(const Engine& engine) cons
     for (int row = 0; row <= Settings::kBoardHeight; ++row) {
         float y = -1.0f + row * cellHeight;
         addQuad(-1.0f, y - lineHalfThickness, boardRightNDC, y + lineHalfThickness, gr, gg, gb);
+    }
+
+    // --- Next-piece preview box ---
+    {
+        const float panelX0 = boardRightNDC + 0.05f;
+        const float panelX1 = 1.0f - 0.05f;
+        const float boxY0 = -0.50f;
+        const float boxY1 = -0.05f;
+
+        addBorderBox(panelX0, boxY0, panelX1, boxY1);
+        addPiecePreview(engine.getNextBlock(), panelX0, boxY0, panelX1, boxY1);
     }
 
     return vertices;
