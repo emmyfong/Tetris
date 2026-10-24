@@ -1,37 +1,101 @@
 #include "Game.h"
-#include <iostream>
+
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
+
 #include <random>
 
-Game::Game() : engine(std::random_device{}()), running(true) {
+namespace {
+
+constexpr double kGravityIntervalSeconds = 0.5;
+
+GLFWwindow* createGlfwWindow() {
+    glfwInit();
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    return glfwCreateWindow(500, 1000, "Tetris", nullptr, nullptr); // matches the 10x20 board's 1:2 aspect ratio
+}
+
+} // namespace
+
+GlfwWindowOwner::GlfwWindowOwner(GLFWwindow* w) : window(w) {}
+
+GlfwWindowOwner::~GlfwWindowOwner() {
+    glfwDestroyWindow(window);
+    glfwTerminate();
+}
+
+GLFWwindow* GlfwWindowOwner::get() const {
+    return window;
+}
+
+Game::Game()
+    : window(createGlfwWindow()),
+      engine(std::random_device{}()),
+      renderer(window.get()),
+      running(true),
+      lastGravityTime(glfwGetTime()),
+      leftKeyWasDown(false),
+      rightKeyWasDown(false),
+      rotateKeyWasDown(false),
+      hardDropKeyWasDown(false),
+      holdKeyWasDown(false) {
 }
 
 void Game::run() {
-    std::cout << "Controls: a=left d=right s=soft-drop w=rotate x=hard-drop c=hold q=quit\n";
-    std::cout << "(Each keypress also advances gravity by one row for now; no real timer yet.)\n\n";
+    while (running && !glfwWindowShouldClose(window.get())) {
+        glfwPollEvents();
+        processInput();
 
-    while (running && !engine.isGameOver()) {
+        double currentTime = glfwGetTime();
+        if (currentTime - lastGravityTime >= kGravityIntervalSeconds) {
+            engine.tick();
+            lastGravityTime = currentTime;
+        }
+
         renderer.draw(engine);
-        handleInput();
     }
-
-    renderer.draw(engine);
-    std::cout << "Final score: " << engine.getScore() << '\n';
 }
 
-void Game::handleInput() {
-    char key;
-    std::cin >> key;
+void Game::processInput() {
+    GLFWwindow* w = window.get();
 
-    switch (key) {
-        case 'a': engine.step(Action::MoveLeft); break;
-        case 'd': engine.step(Action::MoveRight); break;
-        case 's': engine.step(Action::SoftDrop); break;
-        case 'w': engine.step(Action::Rotate); break;
-        case 'x': engine.step(Action::HardDrop); break;
-        case 'c': engine.step(Action::Hold); break;
-        case 'q': running = false; break;
-        default: break;
+    bool leftDown = glfwGetKey(w, GLFW_KEY_LEFT) == GLFW_PRESS;
+    if (leftDown && !leftKeyWasDown) {
+        engine.step(Action::MoveLeft);
+    }
+    leftKeyWasDown = leftDown;
+
+    bool rightDown = glfwGetKey(w, GLFW_KEY_RIGHT) == GLFW_PRESS;
+    if (rightDown && !rightKeyWasDown) {
+        engine.step(Action::MoveRight);
+    }
+    rightKeyWasDown = rightDown;
+
+    bool rotateDown = glfwGetKey(w, GLFW_KEY_UP) == GLFW_PRESS;
+    if (rotateDown && !rotateKeyWasDown) {
+        engine.step(Action::Rotate);
+    }
+    rotateKeyWasDown = rotateDown;
+
+    bool hardDropDown = glfwGetKey(w, GLFW_KEY_SPACE) == GLFW_PRESS;
+    if (hardDropDown && !hardDropKeyWasDown) {
+        engine.step(Action::HardDrop);
+    }
+    hardDropKeyWasDown = hardDropDown;
+
+    bool holdDown = glfwGetKey(w, GLFW_KEY_C) == GLFW_PRESS;
+    if (holdDown && !holdKeyWasDown) {
+        engine.step(Action::Hold);
+    }
+    holdKeyWasDown = holdDown;
+
+    // Soft drop intentionally has no edge-detection: holding the key down
+    // should keep dropping, same as real Tetris.
+    if (glfwGetKey(w, GLFW_KEY_DOWN) == GLFW_PRESS) {
+        engine.step(Action::SoftDrop);
     }
 
-    engine.tick();
+    if (glfwGetKey(w, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+        running = false;
+    }
 }
