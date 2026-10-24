@@ -875,6 +875,7 @@ std::vector<Renderer::Vertex> Renderer::buildVertices(const Engine& engine) cons
                     float cellX0 = startX + (j - minCol) * cellWidth;
                     float cellY0 = startY + (i - minRow) * cellHeight;
                     addQuad(cellX0, cellY0, cellX0 + cellWidth, cellY0 + cellHeight, pr, pg, pb);
+                    addBorderBox(cellX0, cellY0, cellX0 + cellWidth, cellY0 + cellHeight);
                 }
             }
         }
