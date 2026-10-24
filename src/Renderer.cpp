@@ -43,10 +43,26 @@ VkShaderModule createShaderModule(VkDevice device, const std::vector<char>& code
 
 // Worst case: every board cell filled plus the falling piece, plus grid
 // line quads, plus a generous allowance for UI panel elements (borders +
-// piece previews), 6 vertices per quad (2 triangles).
+// piece previews + score digits), 6 vertices per quad (2 triangles).
 constexpr size_t kMaxVertices =
     (Settings::kBoardWidth * Settings::kBoardHeight + 16 +
-     (Settings::kBoardWidth + 1) + (Settings::kBoardHeight + 1) + 200) * 6;
+     (Settings::kBoardWidth + 1) + (Settings::kBoardHeight + 1) + 300) * 6;
+
+// Classic 7-segment digit encoding. Bit 0=a (top), 1=b (top-right),
+// 2=c (bottom-right), 3=d (bottom), 4=e (bottom-left), 5=f (top-left),
+// 6=g (middle). E.g. digit 1 lights only b+c (the two right bars).
+constexpr uint8_t kDigitSegments[10] = {
+    0x3F, // 0: a b c d e f
+    0x06, // 1: b c
+    0x5B, // 2: a b d e g
+    0x4F, // 3: a b c d g
+    0x66, // 4: b c f g
+    0x6D, // 5: a c d f g
+    0x7D, // 6: a c d e f g
+    0x07, // 7: a b c
+    0x7F, // 8: all seven
+    0x6F, // 9: a b c d f g
+};
 
 } // namespace
 
@@ -434,6 +450,26 @@ std::vector<Renderer::Vertex> Renderer::buildVertices(const Engine& engine) cons
         }
     };
 
+    // Draws one digit (0-9) as a 7-segment-style shape inside box [x0,y0]-[x1,y1].
+    auto addDigit = [&](int digit, float x0, float y0, float x1, float y1) {
+        if (digit < 0 || digit > 9) {
+            return;
+        }
+
+        uint8_t segments = kDigitSegments[digit];
+        float t = std::min(x1 - x0, y1 - y0) * 0.18f; // segment thickness
+        float midY = (y0 + y1) / 2.0f;
+        const float dr = 1.0f, dg = 1.0f, db = 1.0f; // white digits
+
+        if (segments & 0x01) addQuad(x0 + t, y0, x1 - t, y0 + t, dr, dg, db);                       // a: top
+        if (segments & 0x02) addQuad(x1 - t, y0 + t, x1, midY, dr, dg, db);                         // b: top-right
+        if (segments & 0x04) addQuad(x1 - t, midY, x1, y1 - t, dr, dg, db);                         // c: bottom-right
+        if (segments & 0x08) addQuad(x0 + t, y1 - t, x1 - t, y1, dr, dg, db);                        // d: bottom
+        if (segments & 0x10) addQuad(x0, midY, x0 + t, y1 - t, dr, dg, db);                          // e: bottom-left
+        if (segments & 0x20) addQuad(x0, y0 + t, x0 + t, midY, dr, dg, db);                          // f: top-left
+        if (segments & 0x40) addQuad(x0 + t, midY - t / 2.0f, x1 - t, midY + t / 2.0f, dr, dg, db); // g: middle
+    };
+
     const Grid& grid = engine.getGrid();
     for (int row = 0; row < Settings::kBoardHeight; ++row) {
         for (int col = 0; col < Settings::kBoardWidth; ++col) {
@@ -470,6 +506,43 @@ std::vector<Renderer::Vertex> Renderer::buildVertices(const Engine& engine) cons
         addQuad(-1.0f, y - lineHalfThickness, boardRightNDC, y + lineHalfThickness, gr, gg, gb);
     }
 
+    // --- Score display ---
+    {
+        const float panelX0 = boardRightNDC + 0.05f;
+        const float panelX1 = 1.0f - 0.05f;
+        const float boxY0 = -0.95f;
+        const float boxY1 = -0.55f;
+
+        addBorderBox(panelX0, boxY0, panelX1, boxY1);
+
+        constexpr int kScoreDigits = 6;
+        int score = engine.getScore();
+        if (score < 0) {
+            score = 0; // shouldn't happen, but digit math below assumes non-negative
+        }
+
+        float boxWidth = panelX1 - panelX0;
+        float boxHeight = boxY1 - boxY0;
+        float digitMargin = boxWidth * 0.02f;
+        float digitSlotWidth = (boxWidth - digitMargin * (kScoreDigits + 1)) / kScoreDigits;
+        float digitHeight = boxHeight * 0.7f;
+        float digitY0 = boxY0 + (boxHeight - digitHeight) / 2.0f;
+        float digitY1 = digitY0 + digitHeight;
+
+        int digits[kScoreDigits];
+        int remaining = score;
+        for (int i = kScoreDigits - 1; i >= 0; --i) {
+            digits[i] = remaining % 10;
+            remaining /= 10;
+        }
+
+        for (int i = 0; i < kScoreDigits; ++i) {
+            float dx0 = panelX0 + digitMargin + i * (digitSlotWidth + digitMargin);
+            float dx1 = dx0 + digitSlotWidth;
+            addDigit(digits[i], dx0, digitY0, dx1, digitY1);
+        }
+    }
+
     // --- Next-piece preview box ---
     {
         const float panelX0 = boardRightNDC + 0.05f;
@@ -479,6 +552,21 @@ std::vector<Renderer::Vertex> Renderer::buildVertices(const Engine& engine) cons
 
         addBorderBox(panelX0, boxY0, panelX1, boxY1);
         addPiecePreview(engine.getNextBlock(), panelX0, boxY0, panelX1, boxY1);
+    }
+
+    // --- Hold-piece preview box ---
+    {
+        const float panelX0 = boardRightNDC + 0.05f;
+        const float panelX1 = 1.0f - 0.05f;
+        const float boxY0 = 0.05f;
+        const float boxY1 = 0.50f;
+
+        addBorderBox(panelX0, boxY0, panelX1, boxY1);
+
+        const std::optional<Block>& holdBlock = engine.getHoldBlock();
+        if (holdBlock.has_value()) {
+            addPiecePreview(*holdBlock, panelX0, boxY0, panelX1, boxY1);
+        }
     }
 
     return vertices;
