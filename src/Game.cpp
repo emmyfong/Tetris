@@ -12,7 +12,7 @@ constexpr double kGravityIntervalSeconds = 0.5;
 GLFWwindow* createGlfwWindow() {
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    return glfwCreateWindow(500, 1000, "Tetris", nullptr, nullptr); // matches the 10x20 board's 1:2 aspect ratio
+    return glfwCreateWindow(Settings::kWindowWidth, Settings::kWindowHeight, "Tetris", nullptr, nullptr);
 }
 
 } // namespace

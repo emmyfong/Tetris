@@ -359,7 +359,13 @@ Renderer::~Renderer() {
 std::vector<Renderer::Vertex> Renderer::buildVertices(const Engine& engine) const {
     std::vector<Vertex> vertices;
 
-    const float cellWidth = 2.0f / Settings::kBoardWidth;
+    // Board occupies NDC x in [-1, boardRightNDC] (left portion of the
+    // window, in pixels Settings::kBoardPixelWidth wide); everything right
+    // of boardRightNDC is blank for now - the UI panel.
+    const float boardFractionX = static_cast<float>(Settings::kBoardPixelWidth) / Settings::kWindowWidth;
+    const float boardRightNDC = -1.0f + 2.0f * boardFractionX;
+
+    const float cellWidth = (boardRightNDC - (-1.0f)) / Settings::kBoardWidth;
     const float cellHeight = 2.0f / Settings::kBoardHeight;
 
     auto addQuad = [&](float x0, float y0, float x1, float y1, float r, float g, float b) {
@@ -418,7 +424,7 @@ std::vector<Renderer::Vertex> Renderer::buildVertices(const Engine& engine) cons
     }
     for (int row = 0; row <= Settings::kBoardHeight; ++row) {
         float y = -1.0f + row * cellHeight;
-        addQuad(-1.0f, y - lineHalfThickness, 1.0f, y + lineHalfThickness, gr, gg, gb);
+        addQuad(-1.0f, y - lineHalfThickness, boardRightNDC, y + lineHalfThickness, gr, gg, gb);
     }
 
     return vertices;
