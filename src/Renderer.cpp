@@ -832,9 +832,9 @@ std::vector<Renderer::Vertex> Renderer::buildVertices(const Engine& engine) cons
     };
 
     const float lineHalfThickness = 0.004f;
-    const float gr = 180.0f / 255.0f;
-    const float gg = 180.0f / 255.0f;
-    const float gb = 180.0f / 255.0f;
+    const float gr = 45.0f / 255.0f;
+    const float gg = 45.0f / 255.0f;
+    const float gb = 45.0f / 255.0f;
 
     // Draws a thin rectangular outline (4 edges) in color (r,g,b) - used for
     // the board's grid lines, UI panel box borders (always gray, gr/gg/gb),
@@ -913,8 +913,22 @@ std::vector<Renderer::Vertex> Renderer::buildVertices(const Engine& engine) cons
         }
     }
 
+    // Board grid outline (internal lines, not just the outer border)
+    for (int col = 0; col <= Settings::kBoardWidth; ++col) {
+        float x = -1.0f + col * cellWidth;
+        addQuad(x - lineHalfThickness, -1.0f, x + lineHalfThickness, 1.0f, gr, gg, gb);
+    }
+    for (int row = 0; row <= Settings::kBoardHeight; ++row) {
+        float y = -1.0f + row * cellHeight;
+        addQuad(-1.0f, y - lineHalfThickness, boardRightNDC, y + lineHalfThickness, gr, gg, gb);
+    }
+
     // Ghost piece: outline only (no fill, since the pipeline has no alpha
     // blending set up) at the row the piece would land on hard drop.
+    // Drawn AFTER the grid lines (above) so it paints on top of them -
+    // there's no depth test, so draw order is paint order, and this was
+    // previously drawn before the grid lines, making the lines cut across
+    // the outline instead of sitting behind it.
     int ghostRow = engine.getGhostRow();
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 4; ++j) {
@@ -928,16 +942,6 @@ std::vector<Renderer::Vertex> Renderer::buildVertices(const Engine& engine) cons
                 }
             }
         }
-    }
-
-    // Board grid outline (internal lines, not just the outer border)
-    for (int col = 0; col <= Settings::kBoardWidth; ++col) {
-        float x = -1.0f + col * cellWidth;
-        addQuad(x - lineHalfThickness, -1.0f, x + lineHalfThickness, 1.0f, gr, gg, gb);
-    }
-    for (int row = 0; row <= Settings::kBoardHeight; ++row) {
-        float y = -1.0f + row * cellHeight;
-        addQuad(-1.0f, y - lineHalfThickness, boardRightNDC, y + lineHalfThickness, gr, gg, gb);
     }
 
     // --- UI panel boxes. Each region is a label band (text drawn

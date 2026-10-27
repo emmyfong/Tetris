@@ -33,6 +33,7 @@ private:
     Renderer renderer;
     bool running;
     double lastGravityTime;
+    double lastSoftDropTime;
 
     bool leftKeyWasDown;
     bool rightKeyWasDown;

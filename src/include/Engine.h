@@ -24,6 +24,7 @@ public:
     int getScore() const;
     bool isGameOver() const;
     int getGhostRow() const;
+    int getLevel() const;
 
 private:
     Block getRandomBlock();
@@ -49,6 +50,8 @@ private:
     std::optional<Block> holdBlock;
     bool canHold;
 
+    int totalLinesCleared;
+    int level;
     int score;
     bool gameOver;
 };
