@@ -104,6 +104,8 @@ void Engine::finishDrop() {
     int linesCleared = grid.clearFullLines();
     if (linesCleared > 0) {
         updateScore(linesCleared);
+        totalLinesCleared += linesCleared;
+        level = 1 + totalLinesCleared / 10;
     }
 
     spawnBlock();
@@ -204,4 +206,5 @@ const Block& Engine::getCurrentBlock() const { return currentBlock; }
 const Block& Engine::getNextBlock() const { return nextBlock; }
 const std::optional<Block>& Engine::getHoldBlock() const { return holdBlock; }
 int Engine::getScore() const { return score; }
+int Engine::getLevel() const { return level; }
 bool Engine::isGameOver() const { return gameOver; }
