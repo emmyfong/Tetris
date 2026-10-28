@@ -20,6 +20,15 @@ add_executable(tetris
     src/Game.cpp
 )
 
+add_executable(tetris_headless
+    src/headless_main.cpp
+    src/Engine.cpp
+    src/Block.cpp
+    src/Blocks.cpp
+    src/Grid.cpp
+)
+target_include_directories(tetris_headless PRIVATE src/include)
+
 target_include_directories(tetris PRIVATE src/include)
 target_link_libraries(tetris PRIVATE glfw Vulkan::Vulkan vk-bootstrap::vk-bootstrap)
 
