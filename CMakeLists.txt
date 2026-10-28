@@ -10,27 +10,26 @@ find_package(Vulkan REQUIRED)
 find_package(vk-bootstrap REQUIRED)
 find_program(GLSLC glslc REQUIRED)
 
-add_executable(tetris
-    src/main.cpp
+add_library(tetris_engine STATIC
     src/Grid.cpp
     src/Block.cpp
     src/Blocks.cpp
     src/Engine.cpp
+)
+target_include_directories(tetris_engine PUBLIC src/include)
+
+add_executable(tetris
+    src/main.cpp
     src/Renderer.cpp
     src/Game.cpp
 )
+target_include_directories(tetris PRIVATE src/include)
+target_link_libraries(tetris PRIVATE tetris_engine glfw Vulkan::Vulkan vk-bootstrap::vk-bootstrap)
 
 add_executable(tetris_headless
     src/headless_main.cpp
-    src/Engine.cpp
-    src/Block.cpp
-    src/Blocks.cpp
-    src/Grid.cpp
 )
-target_include_directories(tetris_headless PRIVATE src/include)
-
-target_include_directories(tetris PRIVATE src/include)
-target_link_libraries(tetris PRIVATE glfw Vulkan::Vulkan vk-bootstrap::vk-bootstrap)
+target_link_libraries(tetris_headless PRIVATE tetris_engine)
 
 set(SHADER_SOURCES
     ${CMAKE_SOURCE_DIR}/shaders/tetris.vert
