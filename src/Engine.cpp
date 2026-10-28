@@ -8,6 +8,8 @@ Engine::Engine(unsigned int seed)
       currentBlock(BlockType::I),
       nextBlock(BlockType::I),
       canHold(true),
+      totalLinesCleared(0),
+      level(1),
       score(0),
       gameOver(false) {
     nextBlock = getRandomBlock();
@@ -30,13 +32,13 @@ void Engine::spawnBlock() {
     currentBlock = nextBlock;
     nextBlock = getRandomBlock();
 
-    if (checkCollision()) {
+    if (checkCollision(currentBlock)) {
         gameOver = true;
     }
 }
 
-bool Engine::checkCollision(int rowOffset) const {
-    const Shape& shape = currentBlock.getCurrentShape();
+bool Engine::checkCollision(const Block& block, int rowOffset) const {
+    const Shape& shape = block.getCurrentShape();
 
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j < 4; ++j) {
@@ -44,8 +46,8 @@ bool Engine::checkCollision(int rowOffset) const {
                 continue;
             }
 
-            int globalRow = currentBlock.row + i + rowOffset;
-            int globalCol = currentBlock.col + j;
+            int globalRow = block.row + i + rowOffset;
+            int globalCol = block.col + j;
 
             if (globalRow >= Settings::kBoardHeight) {
                 return true;
@@ -81,11 +83,42 @@ void Engine::lockToGrid() {
 int Engine::getGhostRow() const {
     int offset = 0;
 
-    while (!checkCollision(offset + 1)) {
+    while (!checkCollision(currentBlock, offset + 1)) {
         ++offset;
     }
 
     return currentBlock.row + offset;
+}
+
+std::vector<Placement> Engine::getPossiblePlacements() const {
+    std::vector<Placement> placements;
+
+    for (int rotationIdx = 0; rotationIdx < kRotationStates; ++rotationIdx) {
+        Block testBlock = currentBlock;
+        testBlock.rotationIdx = rotationIdx;
+        testBlock.row = 0;
+
+        auto [minRow, maxRow, minCol, maxCol] = testBlock.getShapeBounds();
+        int minStartCol = -minCol;
+        int maxStartCol = Settings::kBoardWidth - 1 - maxCol;
+
+        for (int col = minStartCol; col <= maxStartCol; ++col) {
+            testBlock.row = 0;
+            testBlock.col = col;
+
+            if (checkCollision(testBlock)) {
+                continue;
+            }
+
+            while (!checkCollision(testBlock, 1)) {
+                ++testBlock.row;
+            }
+
+            placements.push_back({rotationIdx, col, testBlock.row});
+        }
+    }
+
+    return placements;
 }
 
 void Engine::updateScore(int linesCleared) {
@@ -118,7 +151,7 @@ void Engine::moveDown() {
 
     ++currentBlock.row;
 
-    if (checkCollision()) {
+    if (checkCollision(currentBlock)) {
         --currentBlock.row;
         finishDrop();
     }
@@ -130,7 +163,7 @@ void Engine::moveLeft() {
     }
 
     --currentBlock.col;
-    if (checkCollision()) {
+    if (checkCollision(currentBlock)) {
         ++currentBlock.col;
     }
 }
@@ -141,7 +174,7 @@ void Engine::moveRight() {
     }
 
     ++currentBlock.col;
-    if (checkCollision()) {
+    if (checkCollision(currentBlock)) {
         --currentBlock.col;
     }
 }
@@ -152,7 +185,7 @@ void Engine::rotateBlock() {
     }
 
     currentBlock.rotate();
-    if (checkCollision()) {
+    if (checkCollision(currentBlock)) {
         currentBlock.undoRotate();
     }
 }
@@ -162,7 +195,7 @@ void Engine::hardDrop() {
         return;
     }
 
-    while (!checkCollision(1)) {
+    while (!checkCollision(currentBlock, 1)) {
         ++currentBlock.row;
     }
 

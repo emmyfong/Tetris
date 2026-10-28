@@ -10,6 +10,12 @@
 
 enum class Action { MoveLeft, MoveRight, Rotate, SoftDrop, HardDrop, Hold };
 
+struct Placement {
+    int rotationIdx;
+    int col;
+    int landingRow;
+};
+
 class Engine {
 public:
     explicit Engine(unsigned int seed);
@@ -25,11 +31,12 @@ public:
     bool isGameOver() const;
     int getGhostRow() const;
     int getLevel() const;
+    std::vector<Placement> getPossiblePlacements() const;
 
 private:
     Block getRandomBlock();
     void spawnBlock();
-    bool checkCollision(int rowOffset = 0) const;
+    bool checkCollision(const Block& block, int rowOffset = 0) const;
     void updateScore(int linesClear);
     void moveDown();
     void lockToGrid();
