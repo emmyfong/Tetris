@@ -7,8 +7,12 @@
 
 namespace {
 
-constexpr double kGravityIntervalSeconds = 0.5;
 constexpr double kSoftDropIntervalSeconds = 0.05; // much faster than gravity, but not unthrottled
+
+double gravityIntervalForLevel(int level) {
+    double interval = 0.5 - (level - 1) * 0.08;
+    return interval < 0.1 ? 0.1 : interval;
+}
 
 GLFWwindow* createGlfwWindow() {
     glfwInit();
@@ -49,7 +53,7 @@ void Game::run() {
         processInput();
 
         double currentTime = glfwGetTime();
-        if (currentTime - lastGravityTime >= kGravityIntervalSeconds) {
+        if (currentTime - lastGravityTime >= gravityIntervalForLevel(engine.getLevel())) {
             engine.tick();
             lastGravityTime = currentTime;
         }
@@ -91,12 +95,6 @@ void Game::processInput() {
     }
     holdKeyWasDown = holdDown;
 
-    // Soft drop intentionally has no edge-detection (holding the key down
-    // should keep dropping, same as real Tetris) but does need its own
-    // throttle - without one, this fires every single frame the key is
-    // held, which can drive the piece through the whole board and lock it
-    // almost instantly (looks like "the key does nothing" since it
-    // happens faster than you can see a frame of it).
     if (glfwGetKey(w, GLFW_KEY_DOWN) == GLFW_PRESS) {
         double currentTime = glfwGetTime();
         if (currentTime - lastSoftDropTime >= kSoftDropIntervalSeconds) {
